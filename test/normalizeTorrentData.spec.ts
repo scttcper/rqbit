@@ -86,7 +86,7 @@ describe('normalizeTorrentData', () => {
     const result = normalizeTorrentData(withStats(paused));
     expect(result.state).toBe(TorrentState.paused);
     expect(result.downloadSpeed).toBe(0);
-    expect(result.eta).toBe(0);
+    expect(result.eta).toBe(-1);
     expect(result.connectedPeers).toBe(0);
   });
 
@@ -144,6 +144,7 @@ describe('normalizeTorrentData', () => {
     expect(result.isCompleted).toBe(true);
     expect(result.progress).toBe(1);
     expect(result.ratio).toBe(0);
+    expect(result.eta).toBe(0);
     // uploaded half of what was downloaded
     expect(normalizeTorrentData(withStats({ ...seeding, uploaded_bytes: 35_000 })).ratio).toBe(0.5);
   });

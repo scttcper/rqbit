@@ -58,7 +58,7 @@ export function normalizeTorrentData(
     savePath: torrent.output_folder,
     uploadSpeed: live ? Math.round(live.upload_speed.mbps * MIB) : 0,
     downloadSpeed: live ? Math.round(live.download_speed.mbps * MIB) : 0,
-    eta: live?.time_remaining?.duration.secs ?? 0,
+    eta: stats.finished ? 0 : (live?.time_remaining?.duration.secs ?? -1),
     // rqbit has no queue
     queuePosition: 0,
     // rqbit does not report seeds separately from peers

@@ -210,21 +210,28 @@ export class Rqbit implements TorrentClient {
     return this.url(id === undefined ? '/torrents/playlist' : `/torrents/${id}/playlist`);
   }
 
-  async pauseTorrent(id: TorrentIdOrHash): Promise<EmptyResponse> {
-    return this.request<EmptyResponse>(`/torrents/${id}/pause`, { method: 'POST' });
+  async pauseTorrent(id: TorrentIdOrHash | TorrentIdOrHash[]): Promise<void> {
+    for (const i of Array.isArray(id) ? id : [id]) {
+      await this.request<EmptyResponse>(`/torrents/${i}/pause`, { method: 'POST' });
+    }
   }
 
-  async resumeTorrent(id: TorrentIdOrHash): Promise<EmptyResponse> {
-    return this.request<EmptyResponse>(`/torrents/${id}/start`, { method: 'POST' });
+  async resumeTorrent(id: TorrentIdOrHash | TorrentIdOrHash[]): Promise<void> {
+    for (const i of Array.isArray(id) ? id : [id]) {
+      await this.request<EmptyResponse>(`/torrents/${i}/start`, { method: 'POST' });
+    }
   }
 
   /**
    * Remove a torrent
    * @param removeData (default: false) If true, remove the downloaded files.
+   * @throws {RqbitApiError} when a torrent doesn't exist
    */
-  async removeTorrent(id: TorrentIdOrHash, removeData = false): Promise<EmptyResponse> {
+  async removeTorrent(id: TorrentIdOrHash | TorrentIdOrHash[], removeData = false): Promise<void> {
     const action = removeData ? 'delete' : 'forget';
-    return this.request<EmptyResponse>(`/torrents/${id}/${action}`, { method: 'POST' });
+    for (const i of Array.isArray(id) ? id : [id]) {
+      await this.request<EmptyResponse>(`/torrents/${i}/${action}`, { method: 'POST' });
+    }
   }
 
   /**
@@ -253,14 +260,14 @@ export class Rqbit implements TorrentClient {
   /**
    * rqbit does not support queueing
    */
-  async queueUp(_id: TorrentIdOrHash): Promise<never> {
+  async queueUp(_id: TorrentIdOrHash | TorrentIdOrHash[]): Promise<never> {
     throw new Error('rqbit does not support queueing');
   }
 
   /**
    * rqbit does not support queueing
    */
-  async queueDown(_id: TorrentIdOrHash): Promise<never> {
+  async queueDown(_id: TorrentIdOrHash | TorrentIdOrHash[]): Promise<never> {
     throw new Error('rqbit does not support queueing');
   }
 

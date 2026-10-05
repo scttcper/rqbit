@@ -42,7 +42,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ctrl/shared-torrent": "^6.5.4",
+    "@ctrl/shared-torrent": "^6.6.0",
     "ofetch": "^1.5.1",
     "type-fest": "^5.10.0",
     "ufo": "^1.6.4",

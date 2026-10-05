@@ -5,7 +5,7 @@ import { TorrentState } from '@ctrl/shared-torrent';
 import pWaitFor from 'p-wait-for';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { Rqbit, RqbitApiError } from '../src/index.js';
+import { Rqbit, RqbitApiError, TorrentClientError } from '../src/index.js';
 
 const baseUrl = 'http://localhost:3030/';
 const username = 'admin';
@@ -161,8 +161,28 @@ describe('Rqbit', () => {
       .getTorrentStats('ffffffffffffffffffffffffffffffffffffffff')
       .catch((error: unknown) => error);
     expect(err).toBeInstanceOf(RqbitApiError);
+    expect(err).toBeInstanceOf(TorrentClientError);
     expect((err as RqbitApiError).status).toBe(404);
     expect((err as RqbitApiError).kind).toBe('torrent_not_found');
+    expect((err as RqbitApiError).code).toBe('torrent_not_found');
+  });
+
+  it('should throw torrent_not_found from the normalized methods', async () => {
+    const client = createClient();
+    const missing = '0'.repeat(40);
+    const notFound = { code: 'torrent_not_found' };
+    await expect(client.getTorrent(missing)).rejects.toMatchObject(notFound);
+    await expect(client.pauseTorrent(missing)).rejects.toMatchObject(notFound);
+    await expect(client.resumeTorrent(missing)).rejects.toMatchObject(notFound);
+    await expect(client.removeTorrent([missing])).rejects.toMatchObject(notFound);
+  });
+
+  it('should throw unauthorized for a wrong password', async () => {
+    const client = new Rqbit({ baseUrl, username: 'admin', password: 'wrong' });
+    await expect(client.listTorrents()).rejects.toMatchObject({
+      code: 'unauthorized',
+      status: 401,
+    });
   });
 
   it('should pause and resume torrent', async () => {
@@ -187,8 +207,10 @@ describe('Rqbit', () => {
 
   it('should throw when removing a torrent that does not exist', async () => {
     const client = createClient();
-    // rqbit reports internal_error instead of torrent_not_found for forget/delete
-    await expect(client.removeTorrent('0'.repeat(40))).rejects.toBeInstanceOf(RqbitApiError);
+    await expect(client.removeTorrent('0'.repeat(40))).rejects.toMatchObject({
+      code: 'torrent_not_found',
+      kind: 'torrent_not_found',
+    });
   });
 
   it('should download the torrent metadata', async () => {

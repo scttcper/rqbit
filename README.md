@@ -119,10 +119,10 @@ Failed requests throw a `TorrentClientError` from [@ctrl/shared-torrent](https:/
 import { TorrentClientError } from '@ctrl/rqbit';
 
 try {
-  await client.removeTorrent('torrent-hash');
+  await client.getTorrent('torrent-hash');
 } catch (error) {
   if (error instanceof TorrentClientError && error.code === 'torrent_not_found') {
-    // already removed
+    // not in the client
   }
 }
 ```

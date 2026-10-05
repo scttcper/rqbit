@@ -174,7 +174,6 @@ describe('Rqbit', () => {
     await expect(client.getTorrent(missing)).rejects.toMatchObject(notFound);
     await expect(client.pauseTorrent(missing)).rejects.toMatchObject(notFound);
     await expect(client.resumeTorrent(missing)).rejects.toMatchObject(notFound);
-    await expect(client.removeTorrent([missing])).rejects.toMatchObject(notFound);
   });
 
   it('should throw unauthorized for a wrong password', async () => {
@@ -207,9 +206,10 @@ describe('Rqbit', () => {
 
   it('should throw when removing a torrent that does not exist', async () => {
     const client = createClient();
+    // rqbit responds internal_error instead of torrent_not_found for forget/delete
     await expect(client.removeTorrent('0'.repeat(40))).rejects.toMatchObject({
-      code: 'torrent_not_found',
-      kind: 'torrent_not_found',
+      code: 'request_failed',
+      status: 500,
     });
   });
 

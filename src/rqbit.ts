@@ -241,8 +241,6 @@ export class Rqbit implements TorrentClient {
   async removeTorrent(id: TorrentIdOrHash | TorrentIdOrHash[], removeData = false): Promise<void> {
     const action = removeData ? 'delete' : 'forget';
     for (const i of Array.isArray(id) ? id : [id]) {
-      // forget/delete respond with internal_error for an unknown torrent, stats responds torrent_not_found
-      await this.getTorrentStats(i);
       await this.request<EmptyResponse>(`/torrents/${i}/${action}`, { method: 'POST' });
     }
   }

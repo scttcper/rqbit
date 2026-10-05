@@ -36,6 +36,7 @@ Things that work differently from the other clients:
 
 - Adding a magnet does not respond until rqbit resolves the metadata from peers. Adds use `addTimeout` (default 60 seconds) instead of `timeout`.
 - rqbit has no labels, queue, or added/completed dates. `label` is ignored, `queueUp`/`queueDown` throw, and `dateAdded` is an empty string.
+- `createTorrent` needs rqbit started with `RQBIT_HTTP_API_ALLOW_CREATE=true`, and `getStreamUrl`/`getPlaylistUrl` urls need the same basic auth as the api.
 - Speeds are reported in MiB/s and converted to bytes per second when normalized.
 - Torrents are added with `overwrite: true` by default, like Radarr does. rqbit refuses to add a torrent whose files already exist on disk otherwise.
 - Failed requests throw `RqbitApiError` with the http `status` and rqbit's error `kind`, ex - `torrent_not_found`. Timeouts and network errors are also `RqbitApiError` with no `status`.
@@ -144,6 +145,7 @@ Usenet clients with the same normalized approach:
 docker run -d \
   --name=rqbit \
   -e RQBIT_HTTP_BASIC_AUTH_USERPASS=admin:adminadmin \
+  -e RQBIT_HTTP_API_ALLOW_CREATE=true \
   -p 3030:3030 \
   -p 4240:4240 \
   -v ~/Documents/rqbit/downloads:/home/rqbit/downloads \

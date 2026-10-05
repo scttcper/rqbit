@@ -39,6 +39,19 @@ async function setupTorrent(client: Rqbit): Promise<string> {
   return res.details.info_hash;
 }
 
+/**
+ * Add the multi file torrent, forget it and add it again so rqbit finds the zero filled files and seeds
+ */
+async function seedMultiFile(client: Rqbit): Promise<void> {
+  await client.addTorrent(multiFile);
+  await client.removeTorrent(multiFileHash, false);
+  await client.addTorrent(multiFile);
+  await pWaitFor(async () => (await client.getTorrentStats(multiFileHash)).finished, {
+    timeout: 15_000,
+    interval: 200,
+  });
+}
+
 describe('Rqbit', () => {
   afterEach(async () => {
     const client = createClient();
@@ -212,14 +225,7 @@ describe('Rqbit', () => {
 
   it('should seed a torrent whose files are complete on disk', async () => {
     const client = createClient();
-    await client.addTorrent(multiFile);
-    // forget keeps the zero filled files, re-adding checks them and finds every piece
-    await client.removeTorrent(multiFileHash, false);
-    await client.addTorrent(multiFile);
-    await pWaitFor(async () => (await client.getTorrentStats(multiFileHash)).finished, {
-      timeout: 15_000,
-      interval: 200,
-    });
+    await seedMultiFile(client);
     const torrent = await client.getTorrent(multiFileHash);
     expect(torrent.state).toBe(TorrentState.seeding);
     expect(torrent.isCompleted).toBe(true);
@@ -242,6 +248,63 @@ describe('Rqbit', () => {
     expect(res.added).toBe(1);
     const peers = await client.getTorrentPeerStats(hash, 'all');
     expect(peers.peers['127.0.0.1:6881']).toBeDefined();
+  });
+
+  it('should get dht stats', async () => {
+    const client = createClient();
+    const stats = await client.getDhtStats();
+    expect(stats.id).toMatch(/^[\da-f]{40}$/);
+    expect(stats.routing_table_size).toBeTypeOf('number');
+  });
+
+  it('should stream a file with range requests', async () => {
+    const client = createClient();
+    await seedMultiFile(client);
+    const res = await fetch(client.getStreamUrl(multiFileHash, 0), {
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`,
+        Range: 'bytes=0-9',
+      },
+    });
+    expect(res.status).toBe(206);
+    expect(res.headers.get('content-range')).toBe('bytes 0-9/40000');
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(new Uint8Array(10));
+  });
+
+  it('should build playlist urls', async () => {
+    const client = createClient();
+    await seedMultiFile(client);
+    expect(client.getPlaylistUrl()).toBe('http://localhost:3030/torrents/playlist');
+    const res = await fetch(client.getPlaylistUrl(multiFileHash), {
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`,
+      },
+    });
+    expect(res.headers.get('content-type')).toContain('mpegurl');
+    // no playable files in the test torrent
+    expect((await res.text()).trim()).toBe('#EXTM3U');
+  });
+
+  it('should create a torrent from a folder', async () => {
+    const client = createClient();
+    await seedMultiFile(client);
+    const res = await client.createTorrent('/home/rqbit/downloads/ctrl-rqbit-multi/sub', {
+      name: 'created',
+      trackers: ['http://127.0.0.1:1/announce'],
+    });
+    expect(res.magnet).toContain(`xt=urn:btih:${res.info_hash}`);
+    expect(res.info_hash).toMatch(/^[\da-f]{40}$/);
+    const details = await client.getTorrentDetails(res.info_hash);
+    expect(details.name).toBe('created');
+    expect(details.files.map(file => file.length)).toEqual([10_000]);
+  });
+
+  it('should resolve a magnet without adding it', { retry: 2 }, async () => {
+    const client = createClient();
+    const torrent = await client.resolveMagnet(magnet, { timeout_ms: magnetTimeoutMs });
+    const res = await client.addTorrent(torrent, { list_only: true });
+    expect(res.details.info_hash).toBe(torrentHash);
+    expect((await client.listTorrents()).torrents).toHaveLength(0);
   });
 
   it('should get session stats', async () => {

@@ -331,3 +331,36 @@ export interface RqbitErrorResponse {
  * Empty response from actions like pause, start, forget and delete
  */
 export type EmptyResponse = Record<string, never>;
+
+/**
+ * Response from `GET /dht/stats`
+ */
+export interface DhtStats {
+  /**
+   * This node's DHT id
+   */
+  id: string;
+  outstanding_requests: number;
+  routing_table_size: number;
+  routing_table_size_v6: number;
+}
+
+/**
+ * Query options for `POST /torrents/create`
+ * {@link https://github.com/ikatson/rqbit/blob/v9.0.1/crates/librqbit/src/http_api/handlers/torrents.rs}
+ */
+export interface CreateTorrentOptions {
+  /**
+   * Torrent name, defaults to the folder name
+   */
+  name: string;
+  /**
+   * Announce urls
+   */
+  trackers: string[];
+}
+
+export interface CreateTorrentResponse {
+  magnet: string;
+  info_hash: string;
+}

@@ -22,6 +22,9 @@ import type {
   AddTorrentOptions,
   AddTorrentResponse,
   ApiRootResponse,
+  CreateTorrentOptions,
+  CreateTorrentResponse,
+  DhtStats,
   EmptyResponse,
   ListTorrentsResponse,
   PeerStatsResponse,
@@ -49,7 +52,7 @@ export interface RqbitConfig extends TorrentClientConfig {
   addTimeout?: number;
 }
 
-type ResolvedConfig = RqbitConfig & { path: string; addTimeout: number };
+export type ResolvedConfig = RqbitConfig & { path: string; addTimeout: number };
 
 const defaults: ResolvedConfig = {
   baseUrl: 'http://localhost:3030/',
@@ -136,6 +139,10 @@ export class Rqbit implements TorrentClient {
     return this.request<SessionStats>('/stats');
   }
 
+  async getDhtStats(): Promise<DhtStats> {
+    return this.request<DhtStats>('/dht/stats');
+  }
+
   async getRateLimits(): Promise<RateLimits> {
     return this.request<RateLimits>('/torrents/limits');
   }
@@ -184,6 +191,23 @@ export class Rqbit implements TorrentClient {
       responseType: 'arrayBuffer',
     });
     return new Uint8Array(res);
+  }
+
+  /**
+   * Url to stream a file from a torrent, supports range requests. rqbit requires basic auth on this url when it is enabled.
+   * {@link https://github.com/ikatson/rqbit/blob/v9.0.1/crates/librqbit/src/http_api/handlers/streaming.rs}
+   * @param fileIndex index into the torrent's file list
+   */
+  getStreamUrl(id: TorrentIdOrHash, fileIndex: number): string {
+    return this.url(`/torrents/${id}/stream/${fileIndex}`);
+  }
+
+  /**
+   * Url to an m3u8 playlist of a torrent's playable files, or every torrent's when no id is passed.
+   * rqbit requires basic auth on this url when it is enabled.
+   */
+  getPlaylistUrl(id?: TorrentIdOrHash): string {
+    return this.url(id === undefined ? '/torrents/playlist' : `/torrents/${id}/playlist`);
   }
 
   async pauseTorrent(id: TorrentIdOrHash): Promise<EmptyResponse> {
@@ -272,6 +296,49 @@ export class Rqbit implements TorrentClient {
   }
 
   /**
+   * Resolve a magnet link to .torrent file contents without adding it.
+   * Like adding, rqbit fetches the metadata from peers before it responds, see {@link RqbitConfig.addTimeout}
+   */
+  async resolveMagnet(
+    magnet: string,
+    options: Partial<Pick<AddTorrentOptions, 'timeout_ms'>> = {},
+  ): Promise<Uint8Array<ArrayBuffer>> {
+    const timeoutMs = options.timeout_ms ?? this.config.addTimeout;
+    const res = await this.request<ArrayBuffer, 'arrayBuffer'>('/torrents/resolve_magnet', {
+      method: 'POST',
+      query: { timeout_ms: timeoutMs },
+      body: magnet,
+      // rqbit returns the torrent decoded as json when asked for json
+      headers: { 'Content-Type': 'text/plain', Accept: 'application/x-bittorrent' },
+      responseType: 'arrayBuffer',
+      timeout: timeoutMs + 5000,
+    });
+    return new Uint8Array(res);
+  }
+
+  /**
+   * Create a torrent from a folder on the rqbit server and start seeding it.
+   * rqbit must be started with `--http-api-allow-create` or `RQBIT_HTTP_API_ALLOW_CREATE=true`.
+   * @param folder path to the folder on the rqbit server
+   */
+  async createTorrent(
+    folder: string,
+    options: Partial<CreateTorrentOptions> = {},
+  ): Promise<CreateTorrentResponse> {
+    const magnet = await this.request<string, 'text'>('/torrents/create', {
+      method: 'POST',
+      // repeated trackers=a&trackers=b
+      query: { output: 'magnet', ...options },
+      body: folder,
+      headers: { 'Content-Type': 'text/plain' },
+      responseType: 'text',
+    });
+    // rqbit only sends the info hash in the magnet
+    const infoHash = new URL(magnet).searchParams.get('xt')!.replace('urn:btih:', '');
+    return { magnet, info_hash: infoHash };
+  }
+
+  /**
    * Add a torrent and return normalized torrent data.
    * The add endpoint has no paused option, `startPaused` pauses the torrent after adding.
    * rqbit does not support labels, `label` is ignored.
@@ -325,7 +392,7 @@ export class Rqbit implements TorrentClient {
     path: string,
     options: FetchOptions<R> = {},
   ): Promise<MappedResponseType<R, T>> {
-    const url = joinURL(this.config.baseUrl, this.config.path, path);
+    const url = this.url(path);
     const headers = new Headers(options.headers);
     if (this.config.username || this.config.password) {
       const auth = stringToBase64(`${this.config.username}:${this.config.password}`);
@@ -359,6 +426,10 @@ export class Rqbit implements TorrentClient {
       const message = typeof data === 'string' && data ? data : error.message;
       throw new RqbitApiError(error.response.status, message, undefined, error);
     }
+  }
+
+  private url(path: string): string {
+    return joinURL(this.config.baseUrl, this.config.path, path);
   }
 
   private async postTorrent(

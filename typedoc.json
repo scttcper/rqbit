@@ -1,0 +1,9 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./src"],
+  "sort": ["source-order"],
+  "out": "docs",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "hideGenerator": true
+}

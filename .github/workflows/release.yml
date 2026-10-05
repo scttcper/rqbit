@@ -1,0 +1,43 @@
+name: Release
+on:
+  workflow_run:
+    workflows: ['CI']
+    branches: [master]
+    types: [completed]
+
+permissions:
+  contents: write
+  deployments: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release:
+    name: NPM Release
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # to be able to publish a GitHub release
+      issues: write # to be able to comment on released issues
+      pull-requests: write # to be able to comment on released pull requests
+      id-token: write # to enable use of OIDC for trusted publishing and npm provenance
+    steps:
+      # https://github.com/actions/checkout
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # https://github.com/wyvox/action-setup-pnpm
+      - uses: wyvox/action-setup-pnpm@d84148cd87d55adb709e92120c709b88d15bceac # v4.0.0
+        with:
+          node-version: 26
+
+      # Ensure npm 11.5.1 or later is installed
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - run: pnpm run build
+
+      - name: Release
+        run: npx semantic-release@latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

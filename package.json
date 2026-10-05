@@ -1,0 +1,65 @@
+{
+  "name": "@ctrl/rqbit",
+  "version": "0.0.0-placeholder",
+  "description": "TypeScript api wrapper for rqbit using ofetch",
+  "keywords": [
+    "rqbit",
+    "torrent",
+    "typescript"
+  ],
+  "homepage": "https://rqbit.ep.workers.dev",
+  "license": "MIT",
+  "author": "Scott Cooper <scttcper@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scttcper/rqbit.git"
+  },
+  "files": [
+    "dist/src"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "lint": "oxlint . && oxfmt --check",
+    "lint:fix": "oxlint . --fix && oxfmt",
+    "prepare": "pnpm run build",
+    "build": "tsc",
+    "build:docs": "node --import ./typedoc.mjs ./node_modules/typedoc/bin/typedoc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ctrl/shared-torrent": "^6.5.2",
+    "ofetch": "^1.5.1",
+    "type-fest": "^5.10.0",
+    "ufo": "^1.6.4",
+    "uint8array-extras": "^1.6.0"
+  },
+  "devDependencies": {
+    "@ctrl/oxlint-config": "1.5.0",
+    "@sindresorhus/tsconfig": "8.1.0",
+    "@types/node": "26.6.4",
+    "oxfmt": "0.71.0",
+    "oxlint": "1.86.0",
+    "p-wait-for": "6.0.0",
+    "typedoc": "0.28.20",
+    "typescript": "7.0.2",
+    "typescript6": "npm:typescript@6.0.3",
+    "vitest": "5.0.3"
+  },
+  "release": {
+    "branches": [
+      "master"
+    ]
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@12.9.1"
+}

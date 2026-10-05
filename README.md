@@ -8,6 +8,8 @@
 npm install @ctrl/rqbit
 ```
 
+Requires Node.js 22 or newer.
+
 ### Use
 
 ```ts

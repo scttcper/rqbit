@@ -1,10 +1,12 @@
-import type {
-  AddTorrentOptions as NormalizedAddTorrentOptions,
-  AllClientData,
-  NormalizedTorrent,
-  TorrentClient,
-  TorrentClientConfig,
-  TorrentClientState,
+import {
+  type AddTorrentOptions as NormalizedAddTorrentOptions,
+  type AllClientData,
+  type NormalizedTorrent,
+  type TorrentClient,
+  type TorrentClientConfig,
+  TorrentClientError,
+  type TorrentClientErrorCode,
+  type TorrentClientState,
 } from '@ctrl/shared-torrent';
 import {
   FetchError,
@@ -66,12 +68,11 @@ const defaults: ResolvedConfig = {
 /**
  * Error thrown when a request to rqbit fails, either an error response or a timeout/network error
  */
-export class RqbitApiError extends Error {
+/**
+ * A {@link TorrentClientError} with rqbit's error details
+ */
+export class RqbitApiError extends TorrentClientError {
   override name = 'RqbitApiError';
-  /**
-   * HTTP status code, undefined when no response was received (timeout or network error)
-   */
-  status?: number;
   /**
    * rqbit error kind, ex - `torrent_not_found`. Undefined when rqbit returned a plain text error.
    */
@@ -84,11 +85,21 @@ export class RqbitApiError extends Error {
     response?: RqbitErrorResponse,
     cause?: unknown,
   ) {
-    super(message, { cause });
-    this.status = status;
+    super(message, rqbitErrorCode(status, response?.error_kind), { status, cause });
     this.kind = response?.error_kind;
     this.response = response;
   }
+}
+
+function rqbitErrorCode(
+  status: number | undefined,
+  kind: string | undefined,
+): TorrentClientErrorCode {
+  if (status === 401 || status === 403) {
+    return 'unauthorized';
+  }
+
+  return kind === 'torrent_not_found' ? 'torrent_not_found' : 'request_failed';
 }
 
 /**

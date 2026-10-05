@@ -172,7 +172,7 @@ describe('Rqbit', () => {
     let stats = await client.getTorrentStats(hash);
     expect(stats.state).toBe('paused');
     expect(stats.live).toBeNull();
-    await client.resumeTorrent(hash);
+    await client.resumeTorrent([hash]);
     stats = await client.getTorrentStats(hash);
     expect(stats.state).toBe('live');
   });
@@ -180,9 +180,15 @@ describe('Rqbit', () => {
   it('should remove torrent', async () => {
     const client = createClient();
     const hash = await setupTorrent(client);
-    await client.removeTorrent(hash, false);
+    await client.removeTorrent([hash], false);
     const res = await client.listTorrents();
     expect(res.torrents).toHaveLength(0);
+  });
+
+  it('should throw when removing a torrent that does not exist', async () => {
+    const client = createClient();
+    // rqbit reports internal_error instead of torrent_not_found for forget/delete
+    await expect(client.removeTorrent('0'.repeat(40))).rejects.toBeInstanceOf(RqbitApiError);
   });
 
   it('should download the torrent metadata', async () => {
